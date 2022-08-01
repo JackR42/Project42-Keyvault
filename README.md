@@ -34,7 +34,7 @@ az keyvault secret set --name "DatabaseUserName" \
   --vault-name $KEYVAULT_NAME
 
 #2) Create Service Principal to access Key Vault from Azure DevOps Pipelines
-# create a service principal
+# Create a service principal
 SPN=$(az ad sp create-for-rbac -n "S2-SPN-KeyVault42")
 
 echo $SPN | jq .
@@ -44,50 +44,13 @@ SPN_APPID=$(echo $SPN | jq .appId)
 az ad sp list --display-name "S2-SPN_KeyVault42" --query [0].objectId --out tsv
 <!-- SPN_ID=$(az ad sp show --id $SPN_APPID --query objectId --out tsv) -->
 
-# assign RBAC role to the service principal
+# Assign RBAC role to the service principal
 az role assignment create --role "Key Vault Secrets User" \
    --scope $KEYVAULT_ID \
    --assignee-object-id $SPN_ID
 
-3) Create a pipeline to access Key Vault Secrets
-3.1) Create Service Connection using the SPN
+#3) Create a pipeline to access Key Vault Secrets
+#3.1) Create Service Connection using the SPN
 Create a service connection in Azure DevOps using the SPN created earlier.
 
-3.2) Create YAML pipeline
-Create the following yaml pipeline to get access to the secrets.
-
-trigger:
-- main
-
-pool:
-  vmImage: ubuntu-latest
-
-steps:
-- task: AzureKeyVault@2
-  displayName: Get Secrets from Key Vault
-  inputs:
-    azureSubscription: 'spn-keyvault-devops'
-    KeyVaultName: 'keyvault019'
-    SecretsFilter: '*' # 'DatabasePassword'
-    RunAsPreJob: false
-
-- task: CmdLine@2
-  displayName: Write Secret into File
-  inputs:
-    script: |
-      echo $(DatabasePassword)
-      echo $(DatabasePassword) > secret.txt
-      cat secret.txt
-
-- task: CopyFiles@2
-  displayName: Copy Secrets File
-  inputs:
-    Contents: secret.txt
-    targetFolder: '$(Build.ArtifactStagingDirectory)'
-
-- task: PublishBuildArtifacts@1
-  displayName: Publish Secrets File
-  inputs:
-    PathtoPublish: '$(Build.ArtifactStagingDirectory)'
-    ArtifactName: 'drop'
-    publishLocation: 'Container'
+#3.2) Create YAML pipeline
